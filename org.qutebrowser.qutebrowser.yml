@@ -2,6 +2,8 @@ app-id: org.qutebrowser.qutebrowser
 runtime: org.kde.Platform
 runtime-version: '5.15'
 sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 command: qutebrowser
 rename-icon: qutebrowser
 base: io.qt.qtwebengine.BaseApp
@@ -50,6 +52,48 @@ modules:
         url: https://files.pythonhosted.org/packages/38/f9/4fa6df2753ded1bcc1ce2fdd8046f78bd240ff7647f5c9bcf547c0df77e3/zipp-3.4.1.tar.gz
         sha256: 3607921face881ba3e026887d8150cca609d517579abe052ac81fc5aeffdbd76
 
+  - name: python3-adblock
+    build-options:
+      env:
+        - CARGO_HOME=/run/build/python3-adblock/cargo
+      prepend-path: /usr/lib/sdk/rust-stable/bin
+      build-args:
+        - --share=network
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml --verbose
+      - maturin build --release --strip --cargo-extra-args='--offline'
+      - cargo --offline build --release --locked --all-features --target-dir=target
+      - install -Dm755 target/release/libadblock.so -t /app/lib
+      - pip3 install --exists-action=i --no-index --find-links=file://${PWD}/target/wheels --prefix=${FLATPAK_DEST} adblock --no-build-isolation
+    sources:
+      - type: archive
+        url: https://github.com/ArniDagur/python-adblock/archive/0.4.2.tar.gz
+        sha256: 06de6074e6cfe889fc0383cc929a5a2306570251c14e51abbfcedd328b83e0e9
+      - type: dir
+        path: '.'
+      - python3-adblock-cargo-sources.json
+    modules:
+      - name: maturin
+        build-options:
+          env:
+            - CARGO_HOME=/run/build/maturin/cargo
+          prepend-path: /usr/lib/sdk/rust-stable/bin
+        buildsystem: simple
+        build-commands:
+          - cargo --offline fetch --manifest-path Cargo.toml --verbose
+          - cargo --offline build --release --verbose
+          - install -Dm755 ./target/release/maturin -t /app/bin/
+        sources:
+          - type: dir
+            path: '.'
+          - maturin-cargo-sources.json
+          - type: archive
+            url: https://github.com/PyO3/maturin/archive/v0.9.4.tar.gz
+            sha256: 130d39cc6ecae9b1cb5602d262c1a8a8230c8ddb3496d2397c49e565c0fc731a
+        cleanup:
+          - '*'
+
   - name: sip
     config-opts:
       - --no-dist-info
@@ -60,6 +104,10 @@ modules:
       - --pyidir=/app/lib/python3.8/site-packages
       - --sipdir=/app/share/sip
       - --sip-module PyQt5.sip
+#   buildsystem: simple
+#   build-commands:
+#     - python setup.py build
+#     - python setup.py install --skip-build --prefix=/app --root=/ --optimize=1
     sources:
       - type: archive
         url: https://www.riverbankcomputing.com/static/Downloads/sip/4.19.25/sip-4.19.25.tar.gz
@@ -69,6 +117,9 @@ modules:
           - processed=`sed -e 's|--prefix=/app||' <<< $@`
           - python3 configure.py $processed
         dest-filename: configure
+#     - type: archive
+#       url: https://pypi.python.org/packages/source/s/sip/sip-6.0.3.tar.gz
+#       sha256: 929e3515428ea962003ccf6795244a5fe4fa6e2c94dc9ab8cb2c58fcd368c34c
     cleanup:
       - /bin
       - /include
