@@ -1,0 +1,23 @@
+#!/bin/sh
+
+[ -d flatpak-builder-tools ] || git clone https://github.com/flatpak/flatpak-builder-tools.git
+git -C flatpak-builder-tools pull
+
+[ -d python-adblock ] || git clone https://github.com/ArniDagur/python-adblock.git
+git -C python-adblock fetch
+git -C python-adblock checkout 0.4.2
+
+[ -d maturin ] || git clone https://github.com/PyO3/maturin.git
+git -C maturin fetch
+git -C maturin checkout v0.9.4
+
+flatpak run --command=sh --share=network --filesystem=$PWD org.kde.Sdk//5.15 -c '\
+  pip3 install --user requirements-parser aiohttp toml
+  flatpak-builder-tools/cargo/flatpak-cargo-generator.py \
+    python-adblock/Cargo.lock \
+    -o python3-adblock-cargo-sources.json
+
+  flatpak-builder-tools/cargo/flatpak-cargo-generator.py \
+    maturin/Cargo.lock \
+    -o maturin-cargo-sources.json
+'
