@@ -1,0 +1,15 @@
+#!/bin/sh
+
+[ -d flatpak-builder-tools ] || git clone https://github.com/flatpak/flatpak-builder-tools.git
+git -C flatpak-builder-tools pull
+
+flatpak run --command=sh --share=network --filesystem=$PWD org.kde.Sdk//5.15 -c '\
+  pip3 install --user requirements-parser
+  for pypkg in colorama==0.4.4 Jinja2==2.11.3 MarkupSafe==1.1.1 PyYAML==5.4.1 \
+    typing-extensions==3.7.4.3 setuptools-scm toml; do
+      mod=python3-${pypkg%%=*}
+      mod=${mod%%<*}
+      flatpak-builder-tools/pip/flatpak-pip-generator \
+        $pypkg -o $mod
+  done
+'
